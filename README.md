@@ -28,9 +28,7 @@ git clone https://github.com/ricoocuii-source/figma-interaction-prototype.git
 
 ### 共同前置条件
 
-无论 Claude Code 还是 Codex,都需要:
-- **Figma MCP 服务器**已配置并连接([Figma 官方指南](https://help.figma.com/hc/en-us/articles/32132100833559))
-- **Chrome 浏览器**装在标准位置(用于自检截图)
+需要 **Figma MCP 服务器**已配置并连接([Figma 官方指南](https://help.figma.com/hc/en-us/articles/32132100833559))。
 
 ## 它能干嘛
 
@@ -44,8 +42,7 @@ git clone https://github.com/ricoocuii-source/figma-interaction-prototype.git
 ## 你需要准备什么
 
 1. **Claude Code** + **Figma MCP** 装好,且能正常连接(你之前已经用过)
-2. **Chrome** 装在标准位置(`/Applications/Google Chrome.app/`)— 用来截图自检
-3. **Figma 稿**整理一下:
+2. **Figma 稿**整理一下:
    - 主要交互流程的 frame 都在(无论命名规范不规范都行)
    - 箭头标记好 page-to-page 跳转(connector 工具画的)
    - 拿不准的状态/分支用文字标注(比如"loading 状态" / "无论何时退出都弹这个")
