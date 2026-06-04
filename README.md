@@ -4,16 +4,33 @@
 
 ## 安装
 
-需要 Claude Code(或其他支持 Skill 的客户端)。
+### Claude Code(主要测试环境)
 
 ```bash
-# 用 git 克隆到 Claude Code 的 skills 目录
 mkdir -p ~/.claude/skills
 cd ~/.claude/skills
 git clone https://github.com/ricoocuii-source/figma-interaction-prototype.git
 ```
 
-装完后,你在 Claude Code 里输入 `/figma-interaction-prototype` 就能触发。
+装完后,在 Claude Code 里输入 `/figma-interaction-prototype` 就能触发。
+
+### OpenAI Codex(理论兼容,未实测)
+
+SKILL.md 用了标准 YAML frontmatter + Markdown body,符合 Codex skill 格式。Figma MCP 工具调用也是通用的,理论上能跑。
+
+```bash
+mkdir -p ~/.codex/skills    # 路径以你的 Codex 版本为准
+cd ~/.codex/skills
+git clone https://github.com/ricoocuii-source/figma-interaction-prototype.git
+```
+
+**没在 Codex 实测过**。如果你在 Codex 上跑通了,欢迎开 issue 告诉我安装路径 / 触发方式的具体差异,我会更新 README。
+
+### 共同前置条件
+
+无论 Claude Code 还是 Codex,都需要:
+- **Figma MCP 服务器**已配置并连接([Figma 官方指南](https://help.figma.com/hc/en-us/articles/32132100833559))
+- **Chrome 浏览器**装在标准位置(用于自检截图)
 
 ## 它能干嘛
 
