@@ -1,0 +1,1531 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>职位分享流程 · iPhone Air Demo</title>
+<style>
+  /* ============================================================
+     Reset + page
+     ============================================================ */
+  /* ============================================================
+     Figma design tokens (B-App-UX) — kept identical to source
+     ============================================================ */
+  :root{
+    --tk-red:        #FF5230;   /* 红 — salary, brand accent */
+    --tk-blue:       #096EFD;   /* 蓝 — primary action, links */
+    --tk-black-1:    #4A4A4A;   /* 黑/1 — primary text */
+    --tk-gray-0:     #989898;   /* 灰/0 — disabled / placeholder */
+    --tk-gray-1:     #DADADA;   /* 灰/1 — divider / counter */
+    --tk-gray-3:     #F1F1F1;   /* 灰/3 — track bg */
+    --tk-bg:         #F5F6F8;   /* 背景色 — tag bg / section bg */
+    --tk-blue-0:     #2962FF;   /* Blue/0 — dialog confirm action */
+    --tk-white:      #FFFFFF;
+    /* 字体栈 */
+    --tk-font:      "PingFang SC","Helvetica Neue","Microsoft YaHei","SF Pro SC",-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+  html,body{min-height:100%}
+  body{
+    font-family: var(--tk-font);
+    background: radial-gradient(ellipse at top, #2a2d3a 0%, #15171f 60%, #0a0b10 100%);
+    color:#e7e7e7;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:flex-start;      /* start from top — let user scroll down */
+    padding:32px 16px;
+  }
+
+  /* ============================================================
+     iPhone Air mockup — outer shell
+     screen content area is 375×812 (matches Figma source)
+     ============================================================ */
+  .phone{
+    --w: 393px;            /* outer width incl. bezel */
+    --h: 852px;            /* outer height — iPhone Air ratio ≈ 2.17 (19.5:9) */
+    --bezel: 9px;
+    position: relative;
+    width: var(--w);
+    height: var(--h);
+    flex-shrink: 0;        /* CRITICAL: never let flex shrink the phone */
+    background: linear-gradient(170deg,#23262e 0%, #1a1c22 100%);
+    border-radius: 62px;
+    padding: var(--bezel);
+    box-shadow:
+      0 0 0 1.5px #36393f,                      /* outer titanium hairline */
+      0 30px 60px -20px rgba(0,0,0,.7),
+      0 60px 100px -30px rgba(80,90,140,.25),
+      inset 0 0 0 1px rgba(255,255,255,.04);
+  }
+  /* Side titanium polish hairline (Air feel) */
+  .phone::before, .phone::after{
+    content:""; position:absolute; top:80px; bottom:80px; width:1.5px;
+    background: linear-gradient(180deg, transparent, rgba(255,255,255,.18) 25%, rgba(255,255,255,.18) 75%, transparent);
+    pointer-events:none;
+  }
+  .phone::before{left:-1px}
+  .phone::after{right:-1px}
+
+  .screen{
+    position:relative; width:100%; height:100%;
+    background:#fff; border-radius: 55px; overflow:hidden;
+    /* iOS-like font color baseline */
+    color:var(--tk-black-1);
+  }
+
+  /* Dynamic Island */
+  .island{
+    position:absolute; top:11px; left:50%; transform:translateX(-50%);
+    width:114px; height:32px; background:#000; border-radius:20px;
+    z-index: 1000; pointer-events:none;
+  }
+
+  /* Status bar (system) */
+  .status-bar{
+    position:absolute; top:0; left:0; right:0; height:54px;
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 12px 24px 0;
+    font-size:16px; font-weight:400; color:var(--tk-black-1);
+    pointer-events:none; z-index:900;
+  }
+  /* iPhone time uses PingFang SC Regular 16/24 per Figma */
+  .status-bar .time{font-variant-numeric: tabular-nums}
+  .status-bar .right{display:flex;align-items:center;gap:6px}
+  .status-bar svg{display:block}
+  .status-bar.dark{color:#fff}
+
+  /* ============================================================
+     Page stack — page transitions (push from right)
+     ============================================================ */
+  .page-stack{
+    position:absolute; inset:0; overflow:hidden;
+  }
+  /* Page states — resting:
+     .active   → visible at center (translateX 0)
+     .behind   → visible at -25% (page underneath one layer)
+     no class  → display:none
+     Transient animation classes (.entering / .leaving / .going-back / .coming-back) override above. */
+  .page{
+    position:absolute; inset:0; background:#fff;
+    overflow:hidden;
+    display:none;
+    z-index:1;
+  }
+  .page.active{ display:block; transform:translateX(0); z-index:5 }
+  .page.behind{ display:block; transform:translateX(-25%); filter:brightness(.72); z-index:2 }
+
+  .page.entering    { display:block; z-index:5; animation: page-enter      .32s cubic-bezier(.32,.72,0,1) both }
+  .page.leaving     { display:block; z-index:5; animation: page-leave      .32s cubic-bezier(.32,.72,0,1) both }
+  .page.going-back  { display:block; z-index:5; animation: page-go-behind  .32s cubic-bezier(.32,.72,0,1) both }
+  .page.coming-back { display:block; z-index:5; animation: page-come-back  .32s cubic-bezier(.32,.72,0,1) both }
+
+  /* Modal page slides UP/DOWN — override page slide animations via higher specificity */
+  .page.modal-page.active   { transform: translateY(0); z-index:9 }
+  .page.modal-page.entering { animation: modal-enter .32s cubic-bezier(.32,.72,0,1) both; z-index:9 }
+  .page.modal-page.leaving  { animation: modal-leave .32s cubic-bezier(.32,.72,0,1) both; z-index:9 }
+
+  @keyframes page-enter     { from { transform: translateX(100%) }  to { transform: translateX(0) } }
+  @keyframes page-leave     { from { transform: translateX(0) }     to { transform: translateX(100%) } }
+  @keyframes page-go-behind { from { transform: translateX(0) }     to { transform: translateX(-25%) } }
+  @keyframes page-come-back { from { transform: translateX(-25%) }  to { transform: translateX(0) } }
+  @keyframes modal-enter    { from { transform: translateY(100%) }  to { transform: translateY(0) } }
+  @keyframes modal-leave    { from { transform: translateY(0) }     to { transform: translateY(100%) } }
+
+  /* ============================================================
+     PAGE 1 — Job detail
+     ============================================================ */
+  #page-job{ display:flex; flex-direction:column; background:#fff }
+  .nav-bar{
+    height:44px; position:relative; display:flex; align-items:center;
+    padding:0 16px; margin-top:54px;
+    background:#fff;
+  }
+  .nav-back{
+    width:28px;height:28px;display:grid;place-items:center;color:var(--tk-black-1);cursor:pointer;
+  }
+  .nav-share{
+    margin-left:auto;
+    width:28px;height:28px;display:grid;place-items:center;color:var(--tk-black-1);cursor:pointer;
+  }
+  .nav-share:active{opacity:.6}
+  .nav-share svg{ width:22px;height:22px;stroke-width:2.2 }
+
+  .job-scroll{
+    flex:1; overflow-y:auto; padding: 8px 20px 100px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .job-title-row{display:flex;align-items:flex-start;gap:10px;justify-content:space-between}
+  .job-title{font-size:20px; line-height:28px; font-weight:500; color:var(--tk-black-1); flex:1} /* 标题/20 粗 */
+  .job-salary{color:var(--tk-red); font-weight:600; font-size:14px; line-height:20px; white-space:nowrap; padding-top:6px} /* 实际是 Semibold 14px */
+  .job-meta{display:flex;align-items:center;gap:20px;color:var(--tk-black-1);font-size:12px;margin-top:14px} /* 12px not 13 */
+  .job-meta .item{display:flex;align-items:center;gap:2px;white-space:nowrap}
+  .job-meta .item svg{width:16px;height:16px}
+  .job-status{color:var(--tk-black-1);font-size:12px;margin-top:8px} /* 12px not 13 */
+  .job-status .online{color:#1ab279;font-weight:400}
+
+  .collab-banner{
+    margin-top:18px; padding:13px 17px; background:var(--tk-bg);
+    border-radius:10px; display:flex; align-items:center; justify-content:space-between;
+    height:84px;
+  } /* solid gray bg per Figma, not gradient */
+  .collab-banner .left{color:var(--tk-blue);font-size:16px;font-weight:500;line-height:23px;opacity:.8}
+  .collab-banner .right{display:flex;align-items:center;gap:8px}
+  .collab-avatar{
+    width:36px;height:36px;border-radius:50%;background:#a8b2c9;background-size:cover;background-position:center;
+  }
+  .collab-add{
+    width:36px;height:36px;border-radius:50%;border:1.5px dashed #9fb5e6;display:grid;place-items:center;color:#9fb5e6;font-size:18px;
+  }
+  .collab-label{position:absolute;font-size:11px;color:#7a8ca8;transform:translate(-50%, 38px);left:50%;white-space:nowrap}
+
+  .sect{margin-top:24px; position:relative}
+  /* 4px blue left bar before section titles (matches Figma 4×16 #096EFD anchor) */
+  .sect-title{
+    font-size:16px;font-weight:500;color:var(--tk-black-1);margin-bottom:10px;
+    position:relative; padding-left:8px;
+  }
+  .sect-title::before{
+    content:""; position:absolute; left:-20px; top:6px;
+    width:4px; height:16px; background:var(--tk-blue);
+  }
+  .sect-body{font-size:12px;color:var(--tk-black-1);line-height:20px}     /* 描述/12 实际 */
+  .tag-row{display:flex;flex-wrap:wrap;gap:8px}
+  .tag{padding:4px 15px;background:var(--tk-bg);border-radius:4px;font-size:12px;color:var(--tk-black-1);white-space:nowrap} /* 4×15 padding, 4px radius, 12px text */
+  .job-desc-list{font-size:14px;color:#666;line-height:24px}              /* 实际是 #666 not 黑/1 */
+  .see-all{display:inline-flex;align-items:center;gap:2px;background:#f2f2f2;border-radius:21px;padding:2px 10px 2px 12px;font-size:12px;line-height:20px;color:#9b9b9b;margin-top:10px}
+  .see-all svg{color:#9b9b9b}
+
+  .welfare-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .welfare{display:inline-flex;align-items:center;gap:4px;background:var(--tk-bg);border-radius:4px;padding:10px;font-size:12px;color:var(--tk-black-1);line-height:20px;white-space:nowrap}
+  .welfare-ico{width:16px;height:16px;background:var(--tk-gray-1);border-radius:4px;flex-shrink:0}
+
+  .map-placeholder{
+    margin-top:8px;height:126px;background:linear-gradient(180deg,#eaf2f7,#dde6ec);
+    border-radius:8px;position:relative;display:flex;align-items:flex-end;padding:12px;
+    overflow:hidden;
+  }
+  .map-pin{
+    position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);width:22px;height:30px;
+    background:var(--tk-red);clip-path:path("M11 0C5 0 0 4.7 0 10.5 0 18.6 11 30 11 30S22 18.6 22 10.5C22 4.7 17 0 11 0z");
+  }
+  .map-pin::after{content:"";position:absolute;left:50%;top:9px;transform:translateX(-50%);width:6px;height:6px;border-radius:50%;background:#fff}
+  .map-text{
+    background:rgba(255,255,255,.9);backdrop-filter:blur(6px);padding:4px 10px;border-radius:6px;
+    font-size:12px;color:var(--tk-black-1);line-height:20px;
+  }
+
+  .job-bottom{
+    position:absolute;left:0;right:0;bottom:0;height:84px;display:flex;align-items:center;
+    padding: 0 16px 18px; gap: 10px; background:#fff;
+    border-top:1px solid #f0f0f0;
+  }
+  .job-bottom-left{display:flex;gap:18px;color:var(--tk-black-1);font-size:12px}
+  .job-bottom-left .b{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;white-space:nowrap}
+  .job-bottom-left .b svg{width:22px;height:22px}
+  .job-bottom-right{margin-left:auto;display:flex;gap:8px}
+  .btn-pill{
+    padding:10px 26px;border-radius:53px;font-size:14px;font-weight:400;text-align:center;cursor:pointer;
+    background:#717171;color:#fff;border:none;white-space:nowrap;line-height:24px;
+  } /* secondary actually #717171 gray with white text, not light bg */
+  .btn-pill.primary{ background:var(--tk-black-1); color:#fff }
+
+  /* ============================================================
+     PAGE 2 — Poster share
+     ============================================================ */
+  #page-poster{ display:flex; flex-direction:column; background:transparent; color:#fff }
+  /* Blurred background derived from current poster */
+  .poster-bg{
+    position:absolute; inset:0; background-size:cover; background-position:center; transform:scale(1.4);
+    filter: blur(28px) brightness(.45) saturate(1.2);
+    transition: background-image .5s ease;
+  }
+  .poster-bg-overlay{
+    position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,.25), rgba(0,0,0,.55));
+  }
+  .poster-nav{
+    position:relative; z-index:2; height:44px;
+    display:flex; align-items:center;
+    padding: 0 8px;
+    margin-top:54px;
+  }
+  /* Figma 1717:1542 — container 32×32, vector ratio 8.86:15.71 (narrow chevron) */
+  .poster-nav .back{
+    width:32px; height:32px;
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; cursor:pointer;
+  }
+  .poster-nav .back img{ width:9px; height:16px; display:block }
+  .poster-tab{
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    background:#000;
+    border-radius:45px; padding:4px; display:flex;
+  } /* Figma uses solid black with dark gray indicator */
+  .poster-tab .tab{
+    padding: 0 14px; font-size:12px; color: rgba(255,255,255,.5);
+    border-radius:56px; cursor:pointer; font-weight:400;
+    transition: background .25s, color .25s;
+    white-space:nowrap; height:24px; display:flex; align-items:center; line-height:24px;
+  }
+  .poster-tab .tab.active{ background:#474747; color:#fff; font-weight:400 }
+
+  .poster-canvas-wrap{
+    position:relative; z-index:2;
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
+    padding: 8px 28px 0;
+  }
+  .poster-card{
+    width:300px; height:526px;
+    background:var(--tk-bg); border-radius:8px;
+    box-shadow: 0 20px 50px -15px rgba(0,0,0,.6);
+    position:relative; overflow:hidden;
+    transition: opacity .3s;
+  } /* Figma 300×526, radius 8 */
+  .poster-card.loading{ background:#fff }
+  .poster-card .loader-wrap{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:18px; color:#666;
+  }
+  .poster-card .loader-wrap .label{font-size:14px}
+  .poster-card.has-image .loader-wrap{display:none}
+
+  .poster-image{
+    position:absolute; inset:0; background-size:cover; background-position:center;
+  }
+  .poster-image::after{
+    content:""; position:absolute; inset:0;
+    background: linear-gradient(180deg, transparent 55%, rgba(0,0,0,.55) 100%);
+  }
+  .poster-overlay{
+    position:absolute; left:0; right:0; bottom:0; padding:16px 18px;
+    color:#fff;
+  }
+  .poster-overlay .badge{
+    display:inline-block; background:#ff4444; color:#fff; font-size:11px;
+    padding:2px 7px; border-radius:4px; margin-bottom:8px; font-weight:700;
+  }
+  .poster-overlay .ptitle{font-size:18px; font-weight:700; line-height:1.3; margin-bottom:4px}
+  .poster-overlay .psalary{font-size:14px; color:#ffd366; font-weight:600}
+  .poster-overlay .pcompany{font-size:11px; color:rgba(255,255,255,.86); margin-top:6px}
+  .poster-qr-row{
+    position:absolute; left:0; right:0; bottom:0; padding:10px 14px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    background: linear-gradient(180deg, transparent, rgba(0,0,0,.4));
+    color:#fff; font-size:10px;
+  }
+  .poster-qr-row .copy{flex:1; line-height:1.4}
+  .poster-qr-row .qr{width:42px;height:42px;background:#fff;border-radius:4px;display:grid;place-items:center;color:#000}
+
+  /* Default poster look (clean white card, gradient bg per slot) */
+  .poster-default .poster-image{ filter:none }
+  .poster-default .poster-image::after{ background:linear-gradient(180deg, rgba(0,0,0,.0) 50%, rgba(0,0,0,.4) 100%) }
+
+  /* ============================================================
+     TEAM mode poster — illustration + black gradient + team text + white info card
+     (matches Figma node 5758:1897)
+     ============================================================ */
+  /* Bottom-up black gradient covers 330px */
+  .poster-card.team-mode .poster-image::after{
+    inset:auto 0 0 0; height:330px;
+    background: linear-gradient(to top, rgba(0,0,0,.85), rgba(0,0,0,0));
+  }
+  /* Hide default-mode overlays in team mode */
+  .poster-card.team-mode .poster-overlay,
+  .poster-card.team-mode .poster-qr-row{ display:none }
+
+  /* Team text block — title + description, sits above white card */
+  .team-text-block{
+    position:absolute; left:20px; right:20px; bottom:146px; z-index:2;
+    display:none; flex-direction:column; gap:8px;
+    color:#fff;
+    pointer-events:none;
+  }
+  .poster-card.team-mode .team-text-block{ display:flex }
+  .team-text-block .pt-title{
+    font-family:var(--tk-font); font-size:16px; line-height:22px;
+    font-weight:600;
+  }
+  .team-text-block .pt-desc{
+    font-family:var(--tk-font); font-size:12px; line-height:18px;
+    font-weight:400; max-width:260px;
+  }
+
+  /* White info card — 130px at bottom */
+  .team-info-card{
+    position:absolute; left:0; right:0; bottom:0; height:130px;
+    background:#fff; overflow:hidden; z-index:2;
+    display:none;
+  }
+  .poster-card.team-mode .team-info-card{ display:block }
+  .ic-content{
+    position:absolute; left:20px; top:12px; right:20px;
+    display:flex; flex-direction:column; gap:8px;
+  }
+  .ic-title{
+    font-family:var(--tk-font); font-size:14px; line-height:20px;
+    font-weight:600; color:var(--tk-black-1);
+  }
+  .ic-salary{
+    font-family:var(--tk-font); font-size:12px; line-height:12px;
+    font-weight:600; color:var(--tk-red);
+  }
+  .ic-meta{ display:flex; align-items:center; gap:8px }
+  .ic-company{
+    font-family:var(--tk-font); font-size:10px; line-height:12px;
+    color:var(--tk-black-1);
+  }
+  .ic-pin{
+    display:inline-flex; align-items:center; gap:2px;
+    font-family:var(--tk-font); font-size:10px; line-height:12px;
+    color:var(--tk-gray-0);
+  }
+  .ic-pin img{ width:12px; height:12px }
+  .ic-qrbar{
+    position:absolute; left:20px; bottom:12px;
+    border:.7px solid var(--tk-gray-0); border-radius:3px;
+    height:20px; width:156px;
+    display:flex; align-items:center; padding-left:7px;
+    font-family:var(--tk-font); font-size:10px; line-height:10px;
+    color:var(--tk-black-1);
+  }
+  .ic-qrimg{
+    position:absolute; right:14px; bottom:8px;
+    width:48px; height:48px; object-fit:contain;
+  }
+
+  /* Edit button BELOW poster card (Figma 5758:1925 — pill, gap 2, padding 2 10 2 8) */
+  .edit-fab{
+    margin: 16px auto 0; z-index:3;
+    padding:2px 10px 2px 8px; border-radius:40px;
+    background: rgba(0,0,0,.2);
+    display:none; align-items:center; gap:2px; color:#fff; cursor:pointer;
+    transition: background .2s;
+    font-family:var(--tk-font);
+    font-size:12px; line-height:20px; font-weight:400; white-space:nowrap;
+  }
+  .poster-card.has-edit ~ .edit-fab,
+  .edit-fab.show{ display:inline-flex }
+  .edit-fab:active{ background: rgba(0,0,0,.35) }
+  /* Figma: icon container 16×16, vector inside at 2.68 inset → visible 10.64×10.64 */
+  .edit-fab .ef-ico-box{
+    width:16px; height:16px;
+    display:inline-flex; align-items:center; justify-content:center;
+  }
+  .edit-fab .ef-ico{ width:10.64px; height:10.64px; display:block }
+
+  /* Restore-default chip (appears when modified) */
+  .restore-default{
+    position:absolute; top:14px; left:14px; z-index:3;
+    padding:6px 12px; border-radius:14px;
+    background:rgba(0,0,0,.55); backdrop-filter:blur(12px);
+    color:#fff; font-size:12px; cursor:pointer;
+    display:none;
+  }
+  .poster-card.modified .restore-default{ display:block }
+  .restore-default:active{ opacity:.7 }
+
+  /* Carousel under the card — default-tab only (team-tab is single poster, no picker) */
+  .poster-carousel{
+    position:relative; z-index:2;
+    width:100%; padding: 14px 0 8px;
+  }
+  .poster-carousel.hidden{ display:none }
+  .carousel-track{
+    display:flex; gap:8px;
+    overflow-x:auto; overflow-y:hidden;
+    scroll-snap-type: x mandatory;
+    padding: 0 calc(50% - 30px);   /* center the snap target */
+    scrollbar-width:none;
+  }
+  .carousel-track::-webkit-scrollbar{display:none}
+  .carousel-item{
+    flex: 0 0 60px; aspect-ratio: 3/4;
+    border-radius:6px; background:#444 center/cover; scroll-snap-align: center;
+    border:2px solid transparent; transition: transform .2s, border-color .25s;
+    cursor:pointer;
+  }
+  .carousel-item.selected{
+    border-color: #fff;
+    transform: scale(1.12);
+  }
+
+  /* Bottom share bar (Figma 5758:1928/1932/1935)
+     — icons bare on dark, no circular bg, 38px gaps, centered
+     — per-icon sizes: 保存 32×32, 微信 31.5×25.4, 朋友圈 32×32 */
+  .share-bar{
+    position:absolute; left:0; right:0; bottom:0; padding: 12px 0 30px;
+    display:flex; align-items:flex-start; justify-content:center; gap:38px;
+    z-index:2;
+  }
+  .share-bar .item{
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+    font-family:var(--tk-font); font-size:12px; line-height:20px; font-weight:400;
+    color:#fff; cursor:pointer; white-space:nowrap;
+  }
+  .share-bar .item .icon{
+    display:flex; align-items:center; justify-content:center;
+    height:36px;     /* unified icon-area height to align baselines */
+  }
+  .share-bar .item[data-share="save"]    .icon img{ width:32px;   height:32px   }
+  .share-bar .item[data-share="wechat"]  .icon img{ width:31.5px; height:25.4px }
+  .share-bar .item[data-share="moments"] .icon img{ width:32px;   height:32px   }
+  .share-bar .item:active .icon img{ opacity:.6 }
+
+  /* ============================================================
+     iOS Daisy spinner (12 spokes, classic)
+     ============================================================ */
+  .ios-loader{ width:24px; height:24px; position:relative }
+  .ios-loader span{
+    position:absolute; left:11px; top:1px;
+    width:2px; height:6px; border-radius:1px;
+    background:#8e8e93;
+    transform-origin: 1px 11px;
+    animation: ios-spin-fade 1s linear infinite;
+  }
+  @keyframes ios-spin-fade{ 0%{opacity:1} 100%{opacity:.18} }
+  /* generate 12 spokes via different rotations & delays */
+  .ios-loader span:nth-child(1) { transform: rotate(0deg)   ; animation-delay: -0.916s }
+  .ios-loader span:nth-child(2) { transform: rotate(30deg)  ; animation-delay: -0.833s }
+  .ios-loader span:nth-child(3) { transform: rotate(60deg)  ; animation-delay: -0.750s }
+  .ios-loader span:nth-child(4) { transform: rotate(90deg)  ; animation-delay: -0.666s }
+  .ios-loader span:nth-child(5) { transform: rotate(120deg) ; animation-delay: -0.583s }
+  .ios-loader span:nth-child(6) { transform: rotate(150deg) ; animation-delay: -0.500s }
+  .ios-loader span:nth-child(7) { transform: rotate(180deg) ; animation-delay: -0.416s }
+  .ios-loader span:nth-child(8) { transform: rotate(210deg) ; animation-delay: -0.333s }
+  .ios-loader span:nth-child(9) { transform: rotate(240deg) ; animation-delay: -0.250s }
+  .ios-loader span:nth-child(10){ transform: rotate(270deg) ; animation-delay: -0.166s }
+  .ios-loader span:nth-child(11){ transform: rotate(300deg) ; animation-delay: -0.083s }
+  .ios-loader span:nth-child(12){ transform: rotate(330deg) ; animation-delay:  0s     }
+
+  /* ============================================================
+     iOS Action Sheet (edit / pick image / cancel)
+     ============================================================ */
+  .sheet-backdrop{
+    position:absolute; inset:0; background:rgba(0,0,0,.5);
+    opacity:0; pointer-events:none; transition: opacity .25s;
+    z-index: 1500;
+  } /* Figma: 50% black overlay, not 32% */
+  .sheet-backdrop.show{ opacity:1; pointer-events:auto }
+  .action-sheet{
+    position:absolute; left:0; right:0; bottom:0;
+    display:flex; flex-direction:column;
+    transform: translateY(100%);
+    transition: transform .32s cubic-bezier(.32,.72,0,1);
+    z-index: 1600;
+  } /* full-width, anchored to bottom */
+  .action-sheet.show{ transform: translateY(0) }
+  .sheet-home-indicator{ height:34px; background:#fff; position:relative }
+  .sheet-home-indicator::after{
+    content:""; position:absolute; left:50%; bottom:8px; transform:translateX(-50%);
+    width:135px; height:5px; border-radius:100px; background:var(--tk-black-1);
+  }
+  .action-sheet{
+    border-radius:16px 16px 0 0; overflow:hidden;
+    background:var(--tk-bg);
+  } /* Figma: solid #F5F6F8 bg, top corners rounded 16, no inner radius for inner groups */
+  .action-sheet .group, .action-sheet .cancel{
+    background:transparent; border-radius:0; overflow:hidden;
+  }
+  .action-sheet button{
+    width:100%; height:60px; padding:0; border:none; background:#fff; font-size:16px; color:var(--tk-black-1);
+    cursor:pointer; border-bottom: 1px solid var(--tk-bg); font-weight:400; line-height:24px;
+  } /* solid white tiles, 1px #F5F6F8 separator, 16px text centered */
+  .action-sheet .cancel{ margin-top: 0 }
+  .action-sheet button:last-child{border-bottom:none}
+  .action-sheet button:active{ background: rgba(0,0,0,.04) }
+
+  /* ============================================================
+     PAGE 3 — Edit text modal (full screen, dark background, iOS keyboard)
+     ============================================================ */
+  #page-edit{ background:#1f1f1f; color:#fff; display:flex; flex-direction:column }
+  .edit-nav{
+    height:44px; display:flex; align-items:center; justify-content:space-between;
+    padding: 0 16px; margin-top:54px; color:#fff;
+  }
+  .edit-nav .close{width:30px;height:30px;display:grid;place-items:center;cursor:pointer}
+  .edit-nav .save{font-size:16px;font-weight:600;color:#fff;cursor:pointer;padding:6px 4px}
+  .edit-nav .save:active{opacity:.6}
+  .edit-form{ padding: 24px 24px 0; }
+  .edit-title-row{ position:relative }
+  #edit-title{
+    width:100%; background:transparent; border:none; color:#fff; outline:none;
+    font-size:22px; font-weight:700; padding: 14px 50px 8px 0;
+    caret-color:#fff;
+  }
+  #edit-title::placeholder{ color:rgba(255,255,255,.45); font-weight:500 }
+  .counter{
+    position:absolute; right:0; top:50%; transform: translateY(-30%);
+    color:rgba(255,255,255,.6); font-size:12px;
+  }
+  .edit-desc-row{ position:relative; margin-top:8px }
+  #edit-desc{
+    width:100%; background:transparent; border:none; color:#fff; outline:none;
+    font-size:14px; line-height:22px;
+    padding: 12px 50px 12px 0;
+    resize:none;
+    height: 80px;
+    caret-color:#fff;
+  }
+  #edit-desc::placeholder{ color:rgba(255,255,255,.45) }
+  .edit-desc-row .counter{ bottom:8px; top:auto; transform:none; right:0 }
+
+  /* ============================================================
+     iOS Keyboard (visual only, not interactive)
+     ============================================================ */
+  .keyboard{
+    position:absolute; left:0; right:0; bottom:0;
+    background:#ced0d5; padding: 4px 3px 0;
+    transform: translateY(100%);
+    transition: transform .28s cubic-bezier(.32,.72,0,1);
+    z-index: 2000;
+    user-select:none;
+  }
+  .keyboard.show{ transform: translateY(0) }
+  .keyboard .row{ display:flex; justify-content:center; gap:6px; padding: 5px 0 }
+  .key{
+    flex:1; height:42px; border-radius:5px;
+    background:#fff; box-shadow: 0 1px 0 rgba(0,0,0,.18);
+    display:grid; place-items:center; font-size:17px; color:#000;
+  }
+  .key.dark{ background:#ababaf; color:#fff }
+  .key.wide{ flex:1.6 }
+  .key.space{ flex:5 }
+  .row.r2{ padding: 5px 18px }
+  .row.r3{ padding: 5px 0 }
+  .row.r4{ padding: 5px 0; align-items:stretch }
+  .row.r4 .key{ height:42px; font-size:13.5px }
+  .keyboard-foot{ height:24px; display:flex; align-items:center; justify-content:center }
+  .keyboard-foot .home-bar{ width:128px; height:5px; background:#000; border-radius:3px }
+
+  .next-btn{
+    background:#a4a8af; color:#fff !important;
+    font-size:13.5px !important;
+    flex: 1.6;
+  }
+  .next-btn.complete{ background:#0a84ff }
+
+  /* ============================================================
+     PAGE 4 — WeChat moments compose
+     ============================================================ */
+  #page-wechat{ background:#ededed; display:flex; flex-direction:column }
+  .wechat-brand-strip{
+    background:#f8f8f8; height:24px; padding-left:14px; display:flex; align-items:center;
+    font-size:12px; color:#333; gap:4px; margin-top:54px;
+  }
+  .wechat-brand-strip::before{
+    content:""; display:inline-block; border:5px solid transparent; border-right:6px solid #555; transform: translateX(-3px);
+  }
+  .wechat-nav{
+    height:44px; display:flex; align-items:center; justify-content:space-between;
+    padding:0 16px; background:#ededed;
+  }
+  .wechat-nav .cancel{ font-size:16px; color:#191919; cursor:pointer }
+  .wechat-nav .publish{
+    background:#1aad19; color:#fff; padding: 7px 16px; border-radius:5px;
+    font-size:14px; cursor:pointer;
+  }
+  .wechat-body{ padding: 12px 18px; background:#ededed; }
+  .wechat-input{
+    width:100%; height:64px; background:transparent; border:none; outline:none;
+    font-size:18px; color:#191919; resize:none;
+  }
+  .wechat-input::placeholder{ color:#bfbfbf }
+  .wechat-attachment{
+    width:120px; height:144px;
+    background-size: cover; background-position:center;
+    border-radius:2px; margin-top:8px;
+    box-shadow: 0 0 0 1px rgba(0,0,0,.06);
+  }
+  .wechat-options{
+    margin-top:18px; background:#fff;
+    border-top: 1px solid #e0e0e0; border-bottom: 1px solid #e0e0e0;
+  }
+  .wechat-row{
+    display:flex; align-items:center; padding: 14px 18px;
+    border-bottom: 1px solid #f3f3f3; font-size:14px; color:#191919;
+  }
+  .wechat-row:last-child{ border-bottom:none }
+  .wechat-row .ico{
+    width:22px; height:22px; display:grid; place-items:center; margin-right:14px; color:#555;
+  }
+  .wechat-row .ico svg{ width:18px; height:18px }
+  .wechat-row .val{ margin-left:auto; color:#191919; margin-right:8px }
+  .wechat-row .chev{color:#bfbfbf}
+
+  /* ============================================================
+     Modal / Caption — iOS-style alert dialog (per Figma 2163:1148)
+     ============================================================ */
+  .modal-backdrop{
+    position:absolute; inset:0; background:rgba(0,0,0,.4);
+    opacity:0; pointer-events:none; transition: opacity .25s;
+    z-index: 1700;
+    display:grid; place-items:center;
+  }
+  .modal-backdrop.show{ opacity:1; pointer-events:auto }
+  .alert{
+    width:270px; background:#fff; border-radius:12px;
+    display:flex; flex-direction:column; align-items:center;
+    transform: scale(1.1); opacity:0;
+    transition: transform .2s cubic-bezier(.32,.72,0,1), opacity .2s;
+    overflow:hidden;
+  }
+  .modal-backdrop.show .alert{ transform:scale(1); opacity:1 }
+  .alert-content{
+    padding: 18px 24px 16px; text-align:center;
+    font-family: var(--tk-font);
+    font-size:14px; line-height:22px; font-weight:400;
+    color:var(--tk-black-1);
+  }
+  .alert-actions{
+    width:100%; height:45px; display:flex;
+    border-top:1px solid #e5e5e5;
+  }
+  .alert-actions button{
+    flex:1; background:#fff; border:none; cursor:pointer;
+    font-family: var(--tk-font); font-size:16px; line-height:24px; font-weight:400;
+    color:var(--tk-black-1); padding:0;
+  }
+  .alert-actions button:active{ background:#fafafa }
+  .alert-actions button + button{ border-left:1px solid #e5e5e5 }
+  .alert-actions button.confirm{ color:var(--tk-blue-0) }
+
+  /* ============================================================
+     Toast (light prompt — 轻提示)
+     ============================================================ */
+  .toast{
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%) scale(.85);
+    background: rgba(0,0,0,.78); color:#fff;
+    padding: 14px 20px; border-radius:10px; font-size:14px;
+    opacity:0; pointer-events:none; transition: opacity .25s, transform .25s;
+    z-index: 3000; max-width: 220px; text-align:center; line-height:1.5;
+  }
+  .toast.show{ opacity:1; transform: translate(-50%,-50%) scale(1) }
+</style>
+</head>
+<body>
+
+<div class="phone" id="phone">
+  <div class="screen" id="screen">
+
+    <!-- Dynamic Island -->
+    <div class="island"></div>
+
+    <!-- Status bar -->
+    <div class="status-bar" id="statusBar">
+      <span class="time">9:41</span>
+      <span class="right">
+        <!-- signal -->
+        <svg width="18" height="11" viewBox="0 0 18 11" fill="currentColor"><rect x="0" y="7" width="3" height="4" rx=".5"/><rect x="5" y="5" width="3" height="6" rx=".5"/><rect x="10" y="2.5" width="3" height="8.5" rx=".5"/><rect x="15" y="0" width="3" height="11" rx=".5"/></svg>
+        <!-- wifi -->
+        <svg width="16" height="11" viewBox="0 0 16 11" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1 3.5 Q8 -1 15 3.5"/><path d="M3.5 6 Q8 2.5 12.5 6"/><path d="M6 8.4 Q8 6.8 10 8.4"/><circle cx="8" cy="10.2" r=".9" fill="currentColor"/></svg>
+        <!-- battery -->
+        <svg width="26" height="12" viewBox="0 0 26 12" fill="none">
+          <rect x=".7" y=".7" width="22.6" height="10.6" rx="2.4" stroke="currentColor" stroke-opacity=".5"/>
+          <rect x="2.4" y="2.4" width="19.2" height="7.2" rx="1.4" fill="currentColor"/>
+          <rect x="24" y="3.6" width="1.5" height="4.8" rx=".7" fill="currentColor" opacity=".5"/>
+        </svg>
+      </span>
+    </div>
+
+    <!-- Page stack -->
+    <div class="page-stack" id="pageStack">
+
+      <!-- ============================================================
+           PAGE 1 — Job Detail
+           ============================================================ -->
+      <section class="page active" id="page-job">
+        <div class="nav-bar">
+          <span class="nav-back" title="返回">
+            <svg width="11" height="20" viewBox="0 0 11 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10,1 1,10 10,19"/></svg>
+          </span>
+          <span class="nav-share" id="navShareBtn" title="分享">
+            <!-- iOS share icon: box with up arrow -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 16V3"/>
+              <path d="M8 7l4-4 4 4"/>
+              <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/>
+            </svg>
+          </span>
+        </div>
+
+        <div class="job-scroll">
+          <div class="job-title-row">
+            <div class="job-title">智能驾驶体验设计中心高级交互设计师</div>
+            <div class="job-salary">2万-3万·14薪</div>
+          </div>
+          <div class="job-meta">
+            <span class="item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              北京·西北旺
+            </span>
+            <span class="item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18M5 7v13a2 2 0 002 2h10a2 2 0 002-2V7M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+              3-5年·本科·全职1人
+            </span>
+          </div>
+          <div class="job-status"><span class="online">● 在线中</span> &nbsp;距下线27天</div>
+
+          <div class="collab-banner">
+            <div class="left">邀请同事一起协作,<br/>招聘效率翻倍</div>
+            <div class="right">
+              <div class="collab-avatar" style="background-image:url('https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=72&h=72&fit=crop&crop=face')">
+                <div class="collab-label" style="color:#7a8ca8">我</div>
+              </div>
+              <div class="collab-add">+</div>
+            </div>
+          </div>
+
+          <div class="sect">
+            <div class="sect-title">职位亮点</div>
+            <div class="sect-body">核心部门,核心岗位,福利待遇优厚</div>
+          </div>
+
+          <div class="sect">
+            <div class="sect-title">职位关键词</div>
+            <div class="tag-row">
+              <span class="tag">交互设计123</span>
+              <span class="tag">界面原型</span>
+              <span class="tag">用户模型</span>
+              <span class="tag">流程</span>
+              <span class="tag">信息架构</span>
+              <span class="tag">视觉基础</span>
+            </div>
+          </div>
+
+          <div class="sect">
+            <div class="sect-title">职位描述</div>
+            <div class="job-desc-list">
+              1. 负责智联招聘校园三空产品（空中宣讲、空中面试等）的交互设计工作，解决学生朋友们的求职问题。<br/>
+              2. 能够独立输出重点项目的设计方案。善于协同推进，参与到用户研究及产品需求制定的整个过程；<br/>
+              3. 对现有产品进行可用/易用性测试和评估，能够结合后台数据，竞品对标，用户研究等各纬度进行综合分析，并制定行之有效的解决方案；
+            </div>
+            <span class="see-all">查看全部 <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6,8 10,12 14,8"/></svg></span>
+          </div>
+
+          <div class="sect">
+            <div class="sect-title">职位福利</div>
+            <div class="welfare-row">
+              <span class="welfare"><span class="welfare-ico"></span>年底双薪</span>
+              <span class="welfare"><span class="welfare-ico"></span>加班补助</span>
+              <span class="welfare"><span class="welfare-ico"></span>餐补</span>
+              <span class="welfare"><span class="welfare-ico"></span>14薪</span>
+            </div>
+            <div class="welfare-row">
+              <span class="welfare"><span class="welfare-ico"></span>体检</span>
+              <span class="welfare"><span class="welfare-ico"></span>节日福利</span>
+            </div>
+          </div>
+
+          <div class="sect">
+            <div class="sect-title">奖金绩效</div>
+            <div class="sect-body">考核周期/每个季度，薪水*20%</div>
+          </div>
+
+          <div class="sect">
+            <div class="sect-title">上班地址</div>
+            <div class="map-placeholder">
+              <div class="map-pin"></div>
+              <div class="map-text">北京市海淀区西北旺东路 10 号院</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="job-bottom">
+          <div class="job-bottom-left">
+            <span class="b">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/><path d="M5 21h14"/></svg>
+              下线
+            </span>
+            <span class="b">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              预览效果
+            </span>
+          </div>
+          <div class="job-bottom-right">
+            <button class="btn-pill">刷新</button>
+            <button class="btn-pill primary">修改职位</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           PAGE 2 — Poster share
+           ============================================================ -->
+      <section class="page" id="page-poster">
+        <div class="poster-bg" id="posterBg"></div>
+        <div class="poster-bg-overlay"></div>
+
+        <div class="poster-nav">
+          <span class="back" id="posterBackBtn">
+            <img src="assets/icons/icon-back.svg" alt="back">
+          </span>
+          <div class="poster-tab">
+            <div class="tab" data-tab="default">默认海报</div>
+            <div class="tab active" data-tab="team">团队主题海报</div>
+          </div>
+        </div>
+
+        <div class="poster-canvas-wrap">
+          <div class="poster-card loading team-mode" id="posterCard">
+            <div class="restore-default" id="restoreDefault">恢复默认</div>
+            <div class="poster-image" id="posterImage"></div>
+
+            <!-- TEAM mode: text overlay (above white card) -->
+            <div class="team-text-block">
+              <div class="pt-title" id="posterTitle">急！在线等乘风破浪的你</div>
+              <div class="pt-desc" id="posterDesc">这里有身经百战的产品大牛,有逗比可爱的乖乖男,也有冷峻酷炫的美颜御姐,还有我们翘首以盼的你！</div>
+            </div>
+
+            <!-- TEAM mode: white info card (130px at bottom, holds job info + QR) -->
+            <div class="team-info-card">
+              <div class="ic-content">
+                <div class="ic-title">高薪急招【高级交互设计师】</div>
+                <div class="ic-salary">1.8万-3.2万·14薪</div>
+                <div class="ic-meta">
+                  <span class="ic-company">智联招聘</span>
+                  <span class="ic-pin">
+                    <img src="assets/icons/icon-pin.svg" alt="">
+                    北京·朝阳区
+                  </span>
+                </div>
+              </div>
+              <div class="ic-qrbar">长按识别二维码,查看职位详情</div>
+              <img class="ic-qrimg" src="assets/icons/qrcode.png" alt="QR">
+            </div>
+
+            <!-- DEFAULT mode: legacy overlays (hidden in team mode via .team-mode) -->
+            <div class="poster-overlay" id="posterTextOverlay">
+              <div class="ptitle">智联UXC体验设计部</div>
+              <div class="psalary">2万-3万·14薪</div>
+              <div class="pcompany">智联招聘 · 北京·西北旺</div>
+            </div>
+            <div class="poster-qr-row">
+              <div class="copy" id="posterQrCopy">这里有身经百战的产品大牛,有逗比可爱的乖乖男,也有冷峻酷炫的美颜御姐,还有我们翘首以盼的你！</div>
+              <div class="qr">
+                <svg width="32" height="32" viewBox="0 0 32 32">
+                  <rect x="0" y="0" width="9" height="9" fill="#000"/><rect x="2" y="2" width="5" height="5" fill="#fff"/><rect x="3" y="3" width="3" height="3" fill="#000"/>
+                  <rect x="23" y="0" width="9" height="9" fill="#000"/><rect x="25" y="2" width="5" height="5" fill="#fff"/><rect x="26" y="3" width="3" height="3" fill="#000"/>
+                  <rect x="0" y="23" width="9" height="9" fill="#000"/><rect x="2" y="25" width="5" height="5" fill="#fff"/><rect x="3" y="26" width="3" height="3" fill="#000"/>
+                  <rect x="12" y="11" width="2" height="2" fill="#000"/><rect x="15" y="11" width="2" height="2" fill="#000"/><rect x="18" y="11" width="2" height="2" fill="#000"/>
+                  <rect x="11" y="14" width="2" height="2" fill="#000"/><rect x="14" y="14" width="2" height="2" fill="#000"/><rect x="17" y="14" width="2" height="2" fill="#000"/><rect x="20" y="14" width="2" height="2" fill="#000"/>
+                  <rect x="12" y="17" width="2" height="2" fill="#000"/><rect x="16" y="17" width="2" height="2" fill="#000"/><rect x="19" y="17" width="2" height="2" fill="#000"/>
+                  <rect x="13" y="20" width="2" height="2" fill="#000"/><rect x="15" y="20" width="2" height="2" fill="#000"/><rect x="18" y="20" width="2" height="2" fill="#000"/>
+                </svg>
+              </div>
+            </div>
+            <div class="loader-wrap">
+              <div class="ios-loader" aria-label="加载中">
+                <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+              </div>
+              <div class="label">正在生成分享海报</div>
+            </div>
+          </div>
+
+          <div class="edit-fab" id="editFab" title="编辑">
+            <span class="ef-ico-box">
+              <img class="ef-ico" src="assets/icons/icon-edit.svg" alt="">
+            </span>
+            <span>编辑</span>
+          </div>
+
+          <div class="poster-carousel">
+            <div class="carousel-track" id="carouselTrack"></div>
+          </div>
+        </div>
+
+        <div class="share-bar">
+          <div class="item" data-share="save">
+            <div class="icon">
+              <img src="assets/icons/icon-download.svg" alt="">
+            </div>
+            保存海报
+          </div>
+          <div class="item" data-share="wechat">
+            <div class="icon">
+              <img src="assets/icons/icon-wechat.svg" alt="">
+            </div>
+            微信好友
+          </div>
+          <div class="item" data-share="moments" id="shareMomentsBtn">
+            <div class="icon">
+              <img src="assets/icons/icon-moments.svg" alt="">
+            </div>
+            朋友圈
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           PAGE 3 — Edit text modal (slides up)
+           ============================================================ -->
+      <section class="page modal-page" id="page-edit">
+        <div class="edit-nav">
+          <span class="close" id="editCloseBtn">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
+          </span>
+          <span class="save" id="editSaveBtn">保存</span>
+        </div>
+
+        <div class="edit-form">
+          <div class="edit-title-row">
+            <input id="edit-title" maxlength="12" placeholder="晒一晒你的团队名字" />
+            <span class="counter" id="titleCounter">0/12</span>
+          </div>
+          <div class="edit-desc-row">
+            <textarea id="edit-desc" maxlength="50" placeholder="分享团队那些事儿,吸引优质人才..."></textarea>
+            <span class="counter" id="descCounter">0/50</span>
+          </div>
+        </div>
+
+        <!-- iOS keyboard -->
+        <div class="keyboard" id="keyboard">
+          <div class="row">
+            <div class="key">Q</div><div class="key">W</div><div class="key">E</div><div class="key">R</div><div class="key">T</div><div class="key">Y</div><div class="key">U</div><div class="key">I</div><div class="key">O</div><div class="key">P</div>
+          </div>
+          <div class="row r2">
+            <div class="key">A</div><div class="key">S</div><div class="key">D</div><div class="key">F</div><div class="key">G</div><div class="key">H</div><div class="key">J</div><div class="key">K</div><div class="key">L</div>
+          </div>
+          <div class="row r3">
+            <div class="key dark wide">⇧</div>
+            <div class="key">Z</div><div class="key">X</div><div class="key">C</div><div class="key">V</div><div class="key">B</div><div class="key">N</div><div class="key">M</div>
+            <div class="key dark wide">⌫</div>
+          </div>
+          <div class="row r4">
+            <div class="key dark" style="flex:1.2">123</div>
+            <div class="key dark" style="flex:.8">😊</div>
+            <div class="key space">space</div>
+            <div class="key next-btn" id="kbNextBtn">下一项</div>
+          </div>
+          <div class="keyboard-foot"><div class="home-bar"></div></div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           PAGE 4 — WeChat moments compose
+           ============================================================ -->
+      <section class="page" id="page-wechat">
+        <!-- WeChat top bar (system header replaced by WeChat-styled mini strip) -->
+        <div class="wechat-brand-strip">智联企业版</div>
+        <div class="wechat-nav">
+          <span class="cancel" id="wechatCancelBtn">取消</span>
+          <span class="publish">发表</span>
+        </div>
+        <div class="wechat-body">
+          <textarea class="wechat-input" placeholder="这一刻的想法..."></textarea>
+          <div class="wechat-attachment" id="wechatAttachment"></div>
+        </div>
+        <div class="wechat-options">
+          <div class="wechat-row">
+            <span class="ico">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            </span>
+            所在位置
+            <span class="chev">›</span>
+          </div>
+          <div class="wechat-row">
+            <span class="ico">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg>
+            </span>
+            提醒谁看
+            <span class="chev">›</span>
+          </div>
+          <div class="wechat-row">
+            <span class="ico">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/></svg>
+            </span>
+            谁可以看
+            <span class="val">公开</span>
+            <span class="chev">›</span>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Bottom popup (per Figma 底部弹窗) — solid #F5F6F8 wrapper, 3 white tiles separated by thin gray lines -->
+    <div class="sheet-backdrop" id="sheetBackdrop"></div>
+    <div class="action-sheet" id="actionSheet">
+      <button data-action="edit-text">编辑文字</button>
+      <button data-action="pick-image">选择相册图片</button>
+      <button data-action="cancel">取消</button>
+      <div class="sheet-home-indicator"></div>
+    </div>
+
+    <!-- Modal / Caption — exit confirmation when leaving poster page -->
+    <div class="modal-backdrop" id="modalBackdrop">
+      <div class="alert" id="exitAlert" role="alertdialog" aria-labelledby="exitAlertMsg">
+        <div class="alert-content" id="exitAlertMsg">分享职位海报会提升招聘效果哦，<br/>确认退出吗？</div>
+        <div class="alert-actions">
+          <button data-action="cancel">取消</button>
+          <button data-action="confirm" class="confirm">退出</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast">已分享</div>
+
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   State & utilities
+   ============================================================ */
+const $ = (s, root = document) => root.querySelector(s);
+const $$ = (s, root = document) => Array.from(root.querySelectorAll(s));
+
+/* Fixed team poster illustration (from Figma node 5758:1907) */
+const TEAM_POSTER_URL = 'assets/icons/poster-illustration.png';
+
+const State = {
+  currentPage: 'job',          // job | poster | edit | wechat
+  history: ['job'],
+  tab: 'team',                 // default | team
+  selectedIndex: 0,
+  title: '急！在线等乘风破浪的你',
+  desc:  '这里有身经百战的产品大牛,有逗比可爱的乖乖男,也有冷峻酷炫的美颜御姐,还有我们翘首以盼的你！',
+  defaultTitle: '急！在线等乘风破浪的你',
+  defaultDesc:  '这里有身经百战的产品大牛,有逗比可爱的乖乖男,也有冷峻酷炫的美颜御姐,还有我们翘首以盼的你！',
+  modified: false,
+};
+
+/* Image data — Q2 answer = B (use web placeholder images).
+   Used Unsplash hiring/team scenes. 10 default + 10 team. */
+const teamPosters = [
+  'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=600&h=800&fit=crop',
+  'https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=600&h=800&fit=crop',
+  'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=600&h=800&fit=crop',
+  'https://images.unsplash.com/photo-1573497019418-b400bb3ab074?w=600&h=800&fit=crop',
+  'https://images.unsplash.com/photo-1531545514256-b1400bc00f31?w=600&h=800&fit=crop',
+  'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=600&h=800&fit=crop',
+  'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=600&h=800&fit=crop',
+  'https://images.unsplash.com/photo-1556761175-b413da4baf72?w=600&h=800&fit=crop',
+  'https://images.unsplash.com/photo-1543269865-cbf427effbad?w=600&h=800&fit=crop',
+  'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=600&h=800&fit=crop',
+];
+const defaultPosters = [
+  'https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&h=800&fit=crop',
+  'https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=600&h=800&fit=crop',
+  'https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=600&h=800&fit=crop',
+  'https://images.unsplash.com/photo-1556761175-4b46a572b786?w=600&h=800&fit=crop',
+  'https://images.unsplash.com/photo-1497032628192-86f99bcd76bc?w=600&h=800&fit=crop',
+  'https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=600&h=800&fit=crop',
+  'https://images.unsplash.com/photo-1517502884422-41eaead166d4?w=600&h=800&fit=crop',
+  'https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=600&h=800&fit=crop',
+  'https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?w=600&h=800&fit=crop',
+  'https://images.unsplash.com/photo-1531973576160-7125cd663d86?w=600&h=800&fit=crop',
+];
+
+/* ============================================================
+   Page navigation
+   ============================================================ */
+const ANIM_MS = 320;
+
+function clearTransitClasses(el){
+  el.classList.remove('entering','leaving','going-back','coming-back');
+}
+
+function go(page){
+  const fromEl = $(`#page-${State.currentPage}`);
+  const toEl   = $(`#page-${page}`);
+  if (!toEl || toEl === fromEl) return;
+
+  const isModal = toEl.classList.contains('modal-page');
+
+  clearTransitClasses(toEl);
+  clearTransitClasses(fromEl);
+
+  if (isModal) {
+    // Modal overlays current page — current stays active
+    fromEl.classList.add('active');
+    // Force reflow before adding entering
+    void toEl.offsetWidth;
+    toEl.classList.remove('active','behind');
+    toEl.classList.add('entering');
+    setTimeout(() => {
+      clearTransitClasses(toEl);
+      toEl.classList.add('active');
+    }, ANIM_MS);
+  } else {
+    // Normal forward — push current to behind, slide new in
+    fromEl.classList.remove('active');
+    fromEl.classList.add('going-back');
+    setTimeout(() => {
+      clearTransitClasses(fromEl);
+      fromEl.classList.add('behind');
+    }, ANIM_MS);
+
+    void toEl.offsetWidth;
+    toEl.classList.remove('behind','active');
+    toEl.classList.add('entering');
+    setTimeout(() => {
+      clearTransitClasses(toEl);
+      toEl.classList.add('active');
+    }, ANIM_MS);
+  }
+
+  updateStatusBarStyle(page);
+  State.currentPage = page;
+  if (!State.history.includes(page)) State.history.push(page);
+}
+
+function back(){
+  if (State.history.length <= 1) return;
+  State.history.pop();
+  const target = State.history[State.history.length - 1];
+  const fromEl = $(`#page-${State.currentPage}`);
+  const toEl   = $(`#page-${target}`);
+
+  const isFromModal = fromEl.classList.contains('modal-page');
+
+  clearTransitClasses(fromEl);
+  clearTransitClasses(toEl);
+
+  fromEl.classList.remove('active');
+  void fromEl.offsetWidth;
+  fromEl.classList.add('leaving');
+  setTimeout(() => {
+    clearTransitClasses(fromEl);
+    // After leaving, page becomes display:none (no classes)
+  }, ANIM_MS);
+
+  if (isFromModal) {
+    // Modal goes down, page underneath was already active
+    toEl.classList.add('active');
+  } else {
+    toEl.classList.remove('behind');
+    void toEl.offsetWidth;
+    toEl.classList.add('coming-back');
+    setTimeout(() => {
+      clearTransitClasses(toEl);
+      toEl.classList.add('active');
+    }, ANIM_MS);
+  }
+
+  State.currentPage = target;
+  updateStatusBarStyle(target);
+}
+
+function updateStatusBarStyle(page){
+  const sb = $('#statusBar');
+  // Dark text on light bg (job, wechat). Light text on dark bg (poster, edit)
+  if (page === 'poster' || page === 'edit') {
+    sb.classList.add('dark');
+  } else {
+    sb.classList.remove('dark');
+  }
+}
+
+/* ============================================================
+   Carousel + poster image
+   ============================================================ */
+const carouselTrack = $('#carouselTrack');
+const posterImage = $('#posterImage');
+const posterBg = $('#posterBg');
+const posterCard = $('#posterCard');
+
+function buildCarousel(){
+  carouselTrack.innerHTML = '';
+  const list = State.tab === 'default' ? defaultPosters : teamPosters;
+  list.forEach((url, idx) => {
+    const el = document.createElement('div');
+    el.className = 'carousel-item' + (idx === State.selectedIndex ? ' selected' : '');
+    el.style.backgroundImage = `url(${url})`;
+    el.dataset.index = idx;
+    el.addEventListener('click', () => selectPoster(idx, true));
+    carouselTrack.appendChild(el);
+  });
+  // Center the selected item
+  centerSelected(true);
+}
+
+function selectPoster(idx, scrollIntoView){
+  State.selectedIndex = idx;
+  $$('.carousel-item', carouselTrack).forEach((el, i) => {
+    el.classList.toggle('selected', i === idx);
+  });
+  // Team mode uses the fixed Figma illustration; default mode uses carousel selection
+  const url = (State.tab === 'team') ? TEAM_POSTER_URL : defaultPosters[idx];
+  posterImage.style.backgroundImage = `url(${url})`;
+  posterBg.style.backgroundImage = `url(${url})`;
+  posterCard.classList.add('has-image');
+  // Tab-dependent UI: carousel = default only, edit button = team only, white card = team only
+  posterCard.classList.toggle('team-mode', State.tab === 'team');
+  if (scrollIntoView && State.tab === 'default') {
+    const el = $$('.carousel-item', carouselTrack)[idx];
+    el && el.scrollIntoView({behavior:'smooth', inline:'center', block:'nearest'});
+  }
+  const editFab = $('#editFab');
+  const carousel = $('.poster-carousel');
+  if (editFab)  editFab.classList.toggle('show',     State.tab === 'team');
+  if (carousel) carousel.classList.toggle('hidden',  State.tab === 'team');
+}
+
+function centerSelected(instant){
+  const el = $$('.carousel-item', carouselTrack)[State.selectedIndex];
+  if (!el) return;
+  el.scrollIntoView({behavior: instant ? 'auto' : 'smooth', inline:'center', block:'nearest'});
+}
+
+/* Detect "selection box covers >50% of an item" via scroll-snap visible item.
+   Sample after scroll settles. */
+let scrollTimer = null;
+carouselTrack.addEventListener('scroll', () => {
+  if (scrollTimer) clearTimeout(scrollTimer);
+  scrollTimer = setTimeout(() => {
+    // Determine which item's center is closest to the track's visual center
+    const trackRect = carouselTrack.getBoundingClientRect();
+    const center = trackRect.left + trackRect.width / 2;
+    let best = 0, bestDist = Infinity;
+    $$('.carousel-item', carouselTrack).forEach((el, i) => {
+      const r = el.getBoundingClientRect();
+      const c = r.left + r.width / 2;
+      const d = Math.abs(c - center);
+      if (d < bestDist) { bestDist = d; best = i; }
+    });
+    if (best !== State.selectedIndex) selectPoster(best, false);
+  }, 80);
+});
+
+/* ============================================================
+   Tabs
+   ============================================================ */
+$$('.poster-tab .tab').forEach(tabEl => {
+  tabEl.addEventListener('click', () => {
+    const t = tabEl.dataset.tab;
+    if (t === State.tab) return;
+    State.tab = t;
+    $$('.poster-tab .tab').forEach(x => x.classList.toggle('active', x.dataset.tab === t));
+    buildCarousel();
+    selectPoster(State.selectedIndex, true);   // keep selected index (spec: "切换后保留选中态")
+    // Restore-default visibility only relevant when on team tab
+    const editFab = $('#editFab');
+    if (editFab) editFab.classList.toggle('show', State.tab === 'team');
+    if (State.tab === 'default') {
+      posterCard.classList.remove('modified');
+    } else if (State.modified) {
+      posterCard.classList.add('modified');
+    }
+  });
+});
+
+/* ============================================================
+   Share icon (job page → poster page with loading)
+   ============================================================ */
+$('#navShareBtn').addEventListener('click', () => {
+  // Push to poster page with loading state
+  posterCard.classList.remove('has-image');
+  posterCard.classList.add('loading');
+  go('poster');
+  // 1s iOS daisy loading per user's spec, then reveal poster
+  setTimeout(() => {
+    posterCard.classList.remove('loading');
+    buildCarousel();
+    selectPoster(0, true);
+  }, 1000);
+});
+
+/* Back from poster — show exit-confirmation modal first */
+const modalBackdrop = $('#modalBackdrop');
+function showExitAlert(){ modalBackdrop.classList.add('show'); }
+function hideExitAlert(){ modalBackdrop.classList.remove('show'); }
+$('#posterBackBtn').addEventListener('click', showExitAlert);
+modalBackdrop.addEventListener('click', (e) => {
+  if (e.target === modalBackdrop) hideExitAlert();   // backdrop tap dismisses (treat as cancel)
+});
+$$('button', $('#exitAlert')).forEach(b => {
+  b.addEventListener('click', () => {
+    const a = b.dataset.action;
+    hideExitAlert();
+    if (a === 'confirm') {
+      // wait for modal fade-out, then navigate back
+      setTimeout(back, 220);
+    }
+    // 'cancel' just dismisses
+  });
+});
+
+/* ============================================================
+   Edit button → action sheet
+   ============================================================ */
+const sheetBackdrop = $('#sheetBackdrop');
+const actionSheet = $('#actionSheet');
+function showSheet(){ sheetBackdrop.classList.add('show'); actionSheet.classList.add('show'); }
+function hideSheet(){ sheetBackdrop.classList.remove('show'); actionSheet.classList.remove('show'); }
+
+$('#editFab').addEventListener('click', showSheet);
+sheetBackdrop.addEventListener('click', hideSheet);
+$$('button', actionSheet).forEach(b => {
+  b.addEventListener('click', () => {
+    const a = b.dataset.action;
+    hideSheet();
+    if (a === 'edit-text') {
+      // Open edit text modal (slides up)
+      setTimeout(() => openEdit(), 280);   // wait for sheet collapse
+    } else if (a === 'pick-image') {
+      // Out of scope per Q4: do nothing (treat like 微信好友 — click without response)
+      showToast('图片选择(略)');
+    }
+    // 'cancel' → just close
+  });
+});
+
+/* ============================================================
+   Edit modal — open / close / save / counters / keyboard transition
+   ============================================================ */
+const titleInput = $('#edit-title');
+const descInput  = $('#edit-desc');
+const titleCounter = $('#titleCounter');
+const descCounter  = $('#descCounter');
+const kbNextBtn = $('#kbNextBtn');
+const keyboard = $('#keyboard');
+
+function openEdit(){
+  // Auto-fill last saved (spec: "自动反显上次保存的内容,光标自动定位于标题末尾")
+  titleInput.value = State.title;
+  descInput.value  = State.desc;
+  updateCounters();
+  go('edit');
+  // Focus title, position cursor at end
+  setTimeout(() => {
+    titleInput.focus();
+    titleInput.setSelectionRange(titleInput.value.length, titleInput.value.length);
+    keyboard.classList.add('show');
+    updateNextButton('title');
+  }, 350);
+}
+
+$('#editCloseBtn').addEventListener('click', closeEdit);
+function closeEdit(){
+  keyboard.classList.remove('show');
+  back();
+}
+
+$('#editSaveBtn').addEventListener('click', () => {
+  // Save changes
+  const newTitle = titleInput.value.trim() || State.defaultTitle;
+  const newDesc  = descInput.value.trim()  || State.defaultDesc;
+  State.title = newTitle;
+  State.desc  = newDesc;
+  State.modified = (newTitle !== State.defaultTitle) || (newDesc !== State.defaultDesc);
+  // Reflect on team poster
+  $('#posterTitle').textContent = newTitle;
+  $('#posterDesc').textContent  = newDesc;
+  if (State.modified) posterCard.classList.add('modified'); else posterCard.classList.remove('modified');
+  keyboard.classList.remove('show');
+  back();
+});
+
+function updateCounters(){
+  titleCounter.textContent = `${titleInput.value.length}/12`;
+  descCounter.textContent  = `${descInput.value.length}/50`;
+}
+titleInput.addEventListener('input', () => {
+  // Spec: title 1 line — strip newlines
+  titleInput.value = titleInput.value.replace(/\n/g,'');
+  updateCounters();
+});
+descInput.addEventListener('input', () => {
+  // Spec: description "禁止换行" — no newlines
+  descInput.value = descInput.value.replace(/\n/g,'');
+  updateCounters();
+});
+
+/* Focus/blur tracking for "下一项 / 完成" */
+titleInput.addEventListener('focus', () => { updateNextButton('title'); keyboard.classList.add('show'); });
+descInput.addEventListener('focus',  () => { updateNextButton('desc');  keyboard.classList.add('show'); });
+
+function updateNextButton(which){
+  if (which === 'title') {
+    kbNextBtn.textContent = '下一项';
+    kbNextBtn.classList.remove('complete');
+  } else {
+    kbNextBtn.textContent = '完成';
+    kbNextBtn.classList.add('complete');
+  }
+}
+kbNextBtn.addEventListener('click', () => {
+  if (document.activeElement === titleInput) {
+    descInput.focus();
+    descInput.setSelectionRange(descInput.value.length, descInput.value.length);
+  } else {
+    // 完成 → blur, collapse keyboard
+    descInput.blur();
+    titleInput.blur();
+    keyboard.classList.remove('show');
+  }
+});
+
+/* Tap on poster's restore-default chip */
+$('#restoreDefault').addEventListener('click', () => {
+  State.title = State.defaultTitle;
+  State.desc  = State.defaultDesc;
+  State.modified = false;
+  $('#posterTitle').textContent = State.title;
+  $('#posterDesc').textContent  = State.desc;
+  posterCard.classList.remove('modified');
+  showToast('已恢复默认');
+});
+
+/* ============================================================
+   Share moments button — Q4: 朋友圈 makes a full page (with poster attached)
+   ============================================================ */
+$('#shareMomentsBtn').addEventListener('click', () => {
+  // Attachment uses team illustration in team mode, or carousel selection in default
+  const url = (State.tab === 'team') ? TEAM_POSTER_URL : defaultPosters[State.selectedIndex];
+  $('#wechatAttachment').style.backgroundImage = `url(${url})`;
+  go('wechat');
+});
+
+$('#wechatCancelBtn').addEventListener('click', back);
+
+/* ============================================================
+   Toast helper (轻提示 component)
+   ============================================================ */
+const toast = $('#toast');
+let toastTimer = null;
+function showToast(msg){
+  toast.textContent = msg;
+  toast.classList.add('show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 1400);
+}
+
+/* ============================================================
+   Initial render: build the default carousel for state preview
+   (so when user opens the share page after the 1s loader, content is ready)
+   ============================================================ */
+buildCarousel();
+selectPoster(0, false);
+posterCard.classList.add('loading');   // hide image while in initial state
+
+/* Debug hook: ?page=poster jumps directly to poster page with image revealed
+   (used by subagent for visual self-check against Figma) */
+if (location.search.indexOf('page=poster') !== -1) {
+  posterCard.classList.remove('loading');
+  // Skip loader, render team poster page directly
+  $('#page-job').classList.remove('active');
+  $('#page-poster').classList.add('active');
+  State.currentPage = 'poster';
+  State.history = ['job','poster'];
+  updateStatusBarStyle('poster');
+}
+
+/* Keyboard ESC closes overlays for convenience */
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (modalBackdrop.classList.contains('show')) { hideExitAlert(); return; }
+    if (actionSheet.classList.contains('show')) { hideSheet(); return; }
+    if (State.currentPage === 'edit')   { closeEdit(); return; }
+    if (State.currentPage === 'wechat') { back(); return; }
+    if (State.currentPage === 'poster') { showExitAlert(); return; }
+  }
+});
+</script>
+</body>
+</html>
